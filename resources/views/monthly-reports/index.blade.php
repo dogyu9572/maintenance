@@ -21,7 +21,7 @@
         </ul>
 
         <div class="board_top">
-            <div class="total">총 <strong class="col_blue">{{ $totalCount ?? 3243 }}</strong>개의 게시글</div>
+            <div class="total">총 <strong class="col_blue">{{ $reports->total() }}</strong>개의 게시글</div>
         </div>
 
         <div class="board_list">
@@ -49,7 +49,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($reports ?? [] as $report)
+                    @forelse($reports as $report)
                     <tr>
                         <td class="num">{{ $report->idx }}</td>
                         <td class="mobe_tit year">{{ $report->year }}</td>

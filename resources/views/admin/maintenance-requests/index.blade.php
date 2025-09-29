@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@push('styles')
+<link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+@endpush
+
 @section('title', '유지보수 요청')
 
 @section('content')
@@ -15,36 +19,31 @@
         </div>
         <div class="state_area">
             <a href="{{ route('admin.maintenance-requests.index') }}" class="btn {{ request('status') == '' ? 'on' : '' }}">
-                전체요청 <strong>{{ $totalCount ?? 9 }}</strong>
+                전체요청 <strong>{{ $statistics['totalCount'] ?? 0 }}</strong>
             </a>
             <a href="{{ route('admin.maintenance-requests.index', ['status' => 'received']) }}" class="btn {{ request('status') == 'received' ? 'on' : '' }}">
-                접수<strong>{{ $receivedCount ?? 4 }}</strong>
+                접수<strong>{{ $statistics['receivedCount'] ?? 0 }}</strong>
             </a>
             <a href="{{ route('admin.maintenance-requests.index', ['status' => 'manpower_request']) }}" class="btn {{ request('status') == 'manpower_request' ? 'on' : '' }}">
-                공수확인요청<strong>{{ $manpowerRequestCount ?? 2 }}</strong>
+                공수확인요청<strong>{{ $statistics['manpowerRequestCount'] ?? 0 }}</strong>
             </a>
             <a href="{{ route('admin.maintenance-requests.index', ['status' => 'manpower_completed']) }}" class="btn {{ request('status') == 'manpower_completed' ? 'on' : '' }}">
-                공수확인완료<strong>{{ $manpowerCompletedCount ?? 1 }}</strong>
+                공수확인완료<strong>{{ $statistics['manpowerCompletedCount'] ?? 0 }}</strong>
             </a>
             <a href="{{ route('admin.maintenance-requests.index', ['status' => 'in_progress']) }}" class="btn {{ request('status') == 'in_progress' ? 'on' : '' }}">
-                진행중<strong>{{ $inProgressCount ?? 1 }}</strong>
+                진행중<strong>{{ $statistics['inProgressCount'] ?? 0 }}</strong>
             </a>
             <a href="{{ route('admin.maintenance-requests.index', ['status' => 're_request']) }}" class="btn {{ request('status') == 're_request' ? 'on' : '' }}">
-                재요청<strong>{{ $reRequestCount ?? 1 }}</strong>
+                재요청<strong>{{ $statistics['reRequestCount'] ?? 0 }}</strong>
             </a>
         </div>
 
         <div class="board_top long_set">
-            <div class="total">총 <strong class="col_blue">{{ $totalCount ?? 3243 }}</strong>개의 게시글</div>
+            <div class="total">총 <strong class="col_blue">{{ $statistics['totalCount'] ?? 0 }}</strong>개의 게시글</div>
             <div class="inputs">
                 <form method="GET" action="{{ route('admin.maintenance-requests.index') }}">
                     <select name="client_id" class="text mr">
-                        <option value="">고객사명</option>
-                        @foreach($clients ?? [] as $client)
-                        <option value="{{ $client->idx }}" {{ request('client_id') == $client->idx ? 'selected' : '' }}>
-                            {{ $client->company_name }}
-                        </option>
-                        @endforeach
+                        <option value="">고객사명</option>                     
                     </select>
                     <div class="datepicker_area">
                         <input type="text" class="text datepicker datepicker_start" name="start_date" value="{{ request('start_date') }}">
@@ -55,7 +54,7 @@
                     </div>
                     <input type="text" class="text input" name="search" placeholder="제목, 작성자로 검색이 가능합니다." value="{{ request('search') }}">
                     <button type="submit" class="btn">조회</button>
-                    <select name="per_page" class="text ml">
+                    <select name="per_page" class="text ml" onchange="this.form.submit()">
                         <option value="20" {{ request('per_page') == '20' ? 'selected' : '' }}>20개씩 보기</option>
                         <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50개씩 보기</option>
                         <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100개씩 보기</option>
@@ -73,10 +72,10 @@
                     <col class="w11">
                     <col class="w11">
                     <col width="*">
-                    <col class="w6">
-                    <col class="w9">
-                    <col class="w9">
-                    <col class="w6">
+                    <col class="w10">
+                    <col class="w10">
+                    <col class="w10">
+                    <col class="w10">
                     <col class="w10">
                     <col class="w5">
                     <col class="w9">
@@ -100,7 +99,7 @@
                 </thead>
                 <tbody>
                     @forelse($requests ?? [] as $request)
-                    <tr class="{{ $request->is_urgent ? 'hot' : '' }}">
+                    <tr>
                         <td class="chk">
                             <label class="check solo">
                                 <input type="checkbox" name="check" value="{{ $request->idx }}">
@@ -109,85 +108,36 @@
                         </td>
                         <td class="tac num">
                             @if($request->is_urgent)
-                            <i class="icon">🔥긴급</i>
+                                <i class="icon">🔥긴급</i>
                             @else
-                            {{ $request->idx }}
+                                {{ $requests->total() - (($requests->currentPage() - 1) * $requests->perPage() + $loop->iteration - 1) }}
                             @endif
                         </td>
                         <td class="statebox">
-                            <span class="state i{{ $request->status_id ?? 1 }}">
-                                {{ $request->status_name ?? '접수' }}
+                            <span class="state i{{ $request->status_id }}">
+                                {{ $request->status->name ?? '접수' }}
                             </span>
                         </td>
-                        <td class="mobe_tit customer">{{ Str::limit($request->client_name ?? '강동성심병원', 10) }}...</td>
-                        <td class="mobe_tit type">{{ $request->maintenance_type_name ?? '콘텐츠 수정' }}</td>
+                        <td class="mobe_tit customer">{{ Str::limit($request->user->name ?? '', limit: 20) }}</td>
+                        <td class="mobe_tit type">{{ Str::limit($request->maintenanceType->name ?? '', 15) }}</td>
                         <td class="tt">
                             <a href="{{ route('admin.maintenance-requests.show', $request->idx) }}">
-                                {{ Str::limit($request->title ?? '간호간병통합서비스 병동 홈페이지 게시물 수정요청건', 50) }}...
+                                {{ Str::limit($request->title, 50) }}...
                             </a>
                         </td>
-                        <td class="mobe_tit writer">{{ $request->writer_name ?? '허지선' }}</td>
-                        <td class="mobe_tit date_recep">{{ $request->created_at ? $request->created_at->format('Y.m.d') : '2024.07.11' }}</td>
-                        <td class="mobe_tit date_sched">{{ $request->scheduled_date ? $request->scheduled_date->format('Y.m.d') : '2024.07.11' }}</td>
-                        <td class="mobe_tit manager">{{ $request->manager_name ?? '강심장' }}</td>
-                        <td class="mobe_tit worker">{{ $request->worker_names ?? '지현수,오유림' }}</td>
+                        <td class="mobe_tit writer">{{ $request->user->name ?? '' }}</td>
+                        <td class="mobe_tit date_recep">{{ $request->created_at ? $request->created_at->format('Y.m.d') : '' }}</td>
+                        <td class="mobe_tit date_sched">{{ $request->expected_date ? $request->expected_date->format('Y.m.d') : '' }}</td>
+                        <td class="mobe_tit manager">{{ $request->manager->name ?? '' }}</td>
+                        <td class="mobe_tit worker">{{ $request->worker->name ?? '' }}</td>
                         <td class="note">
-                            <a href="{{ route('admin.maintenance-requests.notes', $request->idx) }}" class="btn_note fancybox fancybox.ajax">보기</a>
+                            <a href="javascript:void(0);" onclick="showNotesModal({{ $request->idx }})" class="btn_note">보기</a>
                         </td>
-                        <td class="mobe_tit date_end">{{ $request->completed_at ? $request->completed_at->format('Y.m.d') : '' }}</td>
+                        <td class="mobe_tit date_end">{{ $request->completed_date ? $request->completed_date->format('Y.m.d') : '' }}</td>
                     </tr>
                     @empty
-                    <tr class="hot">
-                        <td class="chk">
-                            <label class="check solo">
-                                <input type="checkbox" name="check" value="1">
-                                <i></i>
-                            </label>
-                        </td>
-                        <td class="tac num"><i class="icon">🔥긴급</i></td>
-                        <td class="statebox"><span class="state i1">접수</span></td>
-                        <td class="mobe_tit customer">강동성심병원...</td>
-                        <td class="mobe_tit type">콘텐츠 수정</td>
-                        <td class="tt">
-                            <a href="{{ route('admin.maintenance-requests.show', 1) }}">
-                                간호간병통합서비스 병동 홈페이지 게시물 수정요청건...
-                            </a>
-                        </td>
-                        <td class="mobe_tit writer">허지선</td>
-                        <td class="mobe_tit date_recep">2024.07.11</td>
-                        <td class="mobe_tit date_sched">2024.07.11</td>
-                        <td class="mobe_tit manager">강심장</td>
-                        <td class="mobe_tit worker">지현수,오유림</td>
-                        <td class="note">
-                            <a href="{{ route('admin.maintenance-requests.notes', 1) }}" class="btn_note fancybox fancybox.ajax">보기</a>
-                        </td>
-                        <td class="mobe_tit date_end">2024.07.11</td>
-                    </tr>
-                    <tr class="hot">
-                        <td class="chk">
-                            <label class="check solo">
-                                <input type="checkbox" name="check" value="2">
-                                <i></i>
-                            </label>
-                        </td>
-                        <td class="tac num"><i class="icon">🔥긴급</i></td>
-                        <td class="statebox"><span class="state i4">진행중</span></td>
-                        <td class="mobe_tit customer">강동성심병원...</td>
-                        <td class="mobe_tit type">메일, 뉴스레터 발송</td>
-                        <td class="tt">
-                            <a href="{{ route('admin.maintenance-requests.show', 2) }}">
-                                제15회 DAWAS 뉴스레터 발송의 건
-                            </a>
-                        </td>
-                        <td class="mobe_tit writer">허지선</td>
-                        <td class="mobe_tit date_recep">2024.07.11</td>
-                        <td class="mobe_tit date_sched">2024.07.11</td>
-                        <td class="mobe_tit manager">강심장</td>
-                        <td class="mobe_tit worker">지현수,오유림</td>
-                        <td class="note">
-                            <a href="{{ route('admin.maintenance-requests.notes', 2) }}" class="btn_note fancybox fancybox.ajax">보기</a>
-                        </td>
-                        <td class="mobe_tit date_end">2024.07.11</td>
+                    <tr>
+                        <td colspan="13" class="tac">등록된 유지보수 요청이 없습니다.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -229,4 +179,19 @@
         </div>
     </div>
 </div>
+
+<!-- 노트 모달 -->
+<div class="popup pop_notes" style="display: none;">
+    <div class="dm"></div>
+    <div class="pop_fancy pop_note">
+        <a href="javascript:void(0);" class="btn_close" onclick="closeNotesModal()">닫기</a>
+        <div class="tit">비고</div>
+        <div class="con" id="notes_list_content"></div>
+    </div>
+</div>
+
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/admin/maintenance-requests-index.js') }}"></script>
+@endpush

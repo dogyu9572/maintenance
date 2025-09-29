@@ -13,49 +13,56 @@ class MaintenanceRequest extends Model
 
     protected $fillable = [
         'user_id',
-        'assigned_user_id',
-        'maintenance_type_id',
+        'manager_id',
+        'worker_id',
+        'type_id',
         'status_id',
         'title',
         'content',
-        'priority',
-        'estimated_pm_hours',
-        'estimated_design_hours',
-        'estimated_publishing_hours',
-        'estimated_development_hours',
+        'request_date',
+        'expected_date',
+        'completed_date',
+        'expected_pm_hours',
+        'expected_design_hours',
+        'expected_pub_hours',
+        'expected_dev_hours',
         'actual_pm_hours',
         'actual_design_hours',
-        'actual_publishing_hours',
-        'actual_development_hours',
-        'completed_at',
+        'actual_pub_hours',
+        'actual_dev_hours',
+        'is_urgent',
+        'notes',
+        'issues',
+        'report_title',
+        'progress_rate',
+        'progress_status',
     ];
 
     protected $casts = [
-        'completed_at' => 'datetime',
-        'estimated_pm_hours' => 'integer',
-        'estimated_design_hours' => 'integer',
-        'estimated_publishing_hours' => 'integer',
-        'estimated_development_hours' => 'integer',
-        'actual_pm_hours' => 'integer',
-        'actual_design_hours' => 'integer',
-        'actual_publishing_hours' => 'integer',
-        'actual_development_hours' => 'integer',
+        'request_date' => 'date',
+        'expected_date' => 'date',
+        'completed_date' => 'date',
     ];
 
     // Relationships
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function assignedUser()
+    public function manager()
     {
-        return $this->belongsTo(User::class, 'assigned_user_id');
+        return $this->belongsTo(User::class, 'manager_id');
+    }
+
+    public function worker()
+    {
+        return $this->belongsTo(User::class, 'worker_id');
     }
 
     public function maintenanceType()
     {
-        return $this->belongsTo(MaintenanceType::class, 'maintenance_type_id');
+        return $this->belongsTo(MaintenanceType::class, 'type_id');
     }
 
     public function status()
@@ -65,7 +72,7 @@ class MaintenanceRequest extends Model
 
     public function attachments()
     {
-        return $this->hasMany(Attachment::class, 'maintenance_request_id');
+        return $this->hasMany(Attachment::class, 'request_id');
     }
 
     public function comments()

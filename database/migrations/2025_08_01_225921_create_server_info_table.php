@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('server_info', function (Blueprint $table) {
             $table->id('idx');
-            $table->foreignId('client_id')->constrained('clients', 'idx')->onDelete('cascade');
+
             $table->string('domain')->nullable(); // 도메인
             $table->string('sub_domain')->nullable(); // 서브 도메인
             $table->string('admin_url')->nullable(); // 관리자 주소

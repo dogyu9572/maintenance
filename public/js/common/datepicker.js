@@ -30,4 +30,17 @@ class CommonDatepicker {
             $(endSelector).datepicker("setDate", today);
         }
     }
-} 
+}
+
+// 자동 초기화
+$(document).ready(function() {
+    CommonDatepicker.init();
+    
+    // datepicker_today 클래스가 있는 경우 오늘 날짜로 설정
+    $(".datepicker_today").each(function() {
+        if (!$(this).val()) {
+            var today = new Date();
+            $(this).datepicker("setDate", today);
+        }
+    });
+}); 

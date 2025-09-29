@@ -23,7 +23,7 @@
                     <div class="datepicker_area"><input type="text" class="text datepicker datepicker_end" name="end_date" value="{{ request('end_date') }}" placeholder="종료일"></div>
                     <input type="text" class="text input" name="search" placeholder="고객사명, 대표 담당자 이름으로 검색" value="{{ request('search') }}">
                     <button type="submit" class="btn">조회</button>
-                    <select name="per_page" class="text ml2 mo_w100p">
+                    <select name="per_page" class="text ml2 mo_w100p" onchange="this.form.submit()">
                         <option value="20" {{ request('per_page') == '20' ? 'selected' : '' }}>20개씩 보기</option>
                         <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50개씩 보기</option>
                         <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100개씩 보기</option>
@@ -80,20 +80,18 @@
                                 <i></i>
                             </label>
                         </td>
-                        <td class="num_view order2">{{ $totalCount - (($accounts->currentPage() - 1) * $accounts->perPage() + $loop->iteration - 1) }}</td>
-                        <td class="mobe_tit type1 order3">{{ $account->account_type == 'new' ? '신규' : '기존' }}</td>
-                        <td class="mobe_tit type2 order4">{{ $account->client ? ($account->client->client_type == 'company' ? '병원' : ($account->client->client_type == 'association' ? '협회' : '개인')) : '-' }}</td>
-                        <td class="mobe_tit customer order5">{{ $account->client->name ?? '-' }}</td>
+                        <td class="num_view order2">{{ $totalCount - (($accounts->currentPage() - 1) * $accounts->perPage() + $loop->index) }}</td>
+                        <td class="mobe_tit type1 order3">{{ $account->account_type_text }}</td>
+                        <td class="mobe_tit type2 order4">{{ $account->client_type_text }}</td>
+                        <td class="mobe_tit customer order5">{{ $account->name ?? '' }}</td>
                         <td class="mobe_tit id order6">{{ $account->login_id ?? '' }}</td>
-                        <td class="mobe_tit contract order7 mo_w100p">
-                            {{ $account->contract_start ? $account->contract_start->format('Y.m.d') : '' }}{{ $account->contract_start && $account->contract_end ? '~' : '' }}{{ $account->contract_end ? $account->contract_end->format('Y.m.d') : '' }}
-                        </td>
-                        <td class="mobe_tit person order8">{{ $account->name ?? '' }}</td>
-                        <td class="mobe_tit position order9">{{ $account->position ?? '' }}</td>
-                        <td class="mobe_tit phone order10">{{ $account->phone ?? '' }}</td>
-                        <td class="mobe_tit mail order11">{{ $account->email ?? '' }}</td>
-                        <td class="mobe_tit creation order12">{{ $account->created_at ? $account->created_at->format('Y.m.d') : '' }}</td>
-                        <td class="mobe_tit used order13">{{ $account->is_active ? 'Y' : 'N' }}</td>
+                        <td class="mobe_tit contract order7 mo_w100p">{{ $account->contract_period_text }}</td>
+                        <td class="mobe_tit person order8">{{ $account->manager_name ?? '' }}</td>
+                        <td class="mobe_tit position order9">{{ $account->manager_position ?? '' }}</td>
+                        <td class="mobe_tit phone order10">{{ $account->manager_phone ?? '' }}</td>
+                        <td class="mobe_tit mail order11">{{ $account->manager_email ?? '' }}</td>
+                        <td class="mobe_tit creation order12">{{ $account->created_at_formatted }}</td>
+                        <td class="mobe_tit used order13">{{ $account->status_text }}</td>
                     </tr>
                     @empty
                     <tr>

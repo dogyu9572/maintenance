@@ -123,9 +123,10 @@ return [
         ],
 
         'sql' => [
-            'driver' => 'single',
+            'driver' => 'daily',
             'path' => storage_path('logs/sql.log'),
-            'level' => 'debug',
+            'level' => 'info',
+            'days' => 7,
             'replace_placeholders' => true,
         ],
 

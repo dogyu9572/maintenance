@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('contracts', function (Blueprint $table) {
             $table->id('idx');
-            $table->foreignId('client_id')->constrained('clients', 'idx')->onDelete('cascade');
+
             $table->date('contract_start'); // 계약 시작일
             $table->date('contract_end'); // 계약 종료일
             $table->decimal('pm_hours', 8, 2)->default(0); // PM/기획 공수

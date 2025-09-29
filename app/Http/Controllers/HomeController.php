@@ -2,54 +2,86 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MaintenanceRequest;
-use App\Models\RequestStatus;
+use App\Services\HomeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
 {
-    public function index()
+    const G_NUM_HOME = '00';
+    const G_NUM_PREFERENCES = '05';
+
+    protected $homeService;
+
+    public function __construct(HomeService $homeService)
     {
-        // 최근 유지보수 요청
-        $recentRequests = MaintenanceRequest::with(['status', 'maintenanceType', 'user'])
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        // 상태별 통계
-        $statusStats = RequestStatus::withCount('maintenanceRequests')->get();
-
-        $gNum = "00";
-        return view('home', compact('recentRequests', 'statusStats', 'gNum'));
+        $this->homeService = $homeService;
     }
 
-    public function adminDashboard()
+    public function index()
+    {
+        $recentRequests = $this->homeService->getRecentRequests();
+        $statistics = $this->homeService->getMaintenanceStatistics();
+
+        return view('home', compact('recentRequests', 'statistics'));
+    }
+
+    public function adminDashboard(Request $request)
     {
         // 관리자 권한 확인
-        if (!auth()->user()->isAdmin()) {
+        if (!Auth::user()->isAdmin()) {
             return redirect()->route('home');
         }
 
-        // 모든 유지보수 요청
-        $allRequests = MaintenanceRequest::with(['status', 'maintenanceType', 'user'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $currentStatus = $request->get('status', 'all');
 
-        // 상태별 통계
-        $statusStats = RequestStatus::withCount('maintenanceRequests')->get();
+        $filteredRequests = $this->homeService->getFilteredRequests($currentStatus);
+        $allRequests = $this->homeService->getFilteredRequests('all');
+        $totalRequestsCount = $this->homeService->getTotalRequestsCount();
+        $clients = $this->homeService->getClientsWithRequestCount();
+        $recentNotices = $this->homeService->getRecentNotices();
+        $statistics = $this->homeService->getStatusCountsArray();
 
-        $gNum = "00";
-        return view('admin.dashboard', compact('allRequests', 'statusStats', 'gNum'));
+        // 최근 알림내역 (실제 구현에서는 Notification 모델 사용)
+        $recentNotifications = $this->getRecentNotifications();
+
+        return view('admin.dashboard', compact(
+            'filteredRequests', 
+            'allRequests',
+            'currentStatus',
+            'totalRequestsCount',
+            'clients',
+            'recentNotifications',
+            'recentNotices',
+            'statistics'
+        ));
     }
 
     public function adminPreferences()
     {
         // 관리자 권한 확인
-        if (!auth()->user()->isAdmin()) {
+        if (!Auth::user()->isAdmin()) {
             return redirect()->route('home');
         }
 
-        $gNum = "05";
-        return view('admin.preferences', compact('gNum'));
+        return view('admin.preferences');
+    }
+
+    /**
+     * 최근 알림내역 조회 (임시 구현)
+     * TODO: 실제 Notification 모델로 대체 필요
+     */
+    private function getRecentNotifications(): array
+    {
+        return [
+            (object) [
+                'message' => '2024-08-16에 허지선님이 요청주신 내역이 접수되었습니다.',
+                'created_at' => now()->subDays(1)
+            ],
+            (object) [
+                'message' => '2024-08-15에 김철수님이 요청주신 내역이 접수되었습니다.',
+                'created_at' => now()->subDays(2)
+            ]
+        ];
     }
 }

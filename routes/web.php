@@ -10,14 +10,18 @@ use App\Http\Controllers\MonthlyReportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Admin\AccountController as AdminAccountController;
-use App\Http\Controllers\Admin\ClientController as AdminClientController;
+
 use App\Http\Controllers\Admin\MaintenanceRequestController as AdminMaintenanceRequestController;
+use App\Http\Controllers\Admin\CommentController as AdminCommentController;
 use App\Http\Controllers\Admin\MonthlyReportController as AdminMonthlyReportController;
 use App\Http\Controllers\Admin\NoticeController as AdminNoticeController;
 
 // 인증 라우트
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+// Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware([
+    \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+]);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // 인증이 필요한 라우트들
@@ -40,23 +44,16 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{id}', [AdminAccountController::class, 'update'])->name('update');
             Route::delete('/{id}', [AdminAccountController::class, 'destroy'])->name('destroy');
             Route::post('/bulk-delete', [AdminAccountController::class, 'bulkDelete'])->name('bulk-delete');
+            Route::post('/check-duplicate', [AdminAccountController::class, 'checkDuplicate'])->name('check-duplicate');
         });
 
-        // 클라이언트 관리 라우트
-        Route::prefix('clients')->name('clients.')->group(function () {
-            Route::get('/', [AdminClientController::class, 'index'])->name('index');
-            Route::get('/create', [AdminClientController::class, 'create'])->name('create');
-            Route::post('/', [AdminClientController::class, 'store'])->name('store');
-            Route::get('/{id}', [AdminClientController::class, 'show'])->name('show');
-            Route::get('/{id}/edit', [AdminClientController::class, 'edit'])->name('edit');
-            Route::put('/{id}', [AdminClientController::class, 'update'])->name('update');
-            Route::delete('/{id}', [AdminClientController::class, 'destroy'])->name('destroy');
-            Route::get('/contracts/{id}/download', [AdminClientController::class, 'downloadContract'])->name('contracts.download');
-        });
+
 
         // 관리자 유지보수 요청 라우트
         Route::prefix('maintenance-requests')->name('maintenance-requests.')->group(function () {
             Route::get('/', [AdminMaintenanceRequestController::class, 'index'])->name('index');
+            Route::get('/create', [AdminMaintenanceRequestController::class, 'create'])->name('create');
+            Route::post('/', [AdminMaintenanceRequestController::class, 'store'])->name('store');
             Route::get('/{id}', [AdminMaintenanceRequestController::class, 'show'])->name('show');
             Route::get('/{id}/edit', [AdminMaintenanceRequestController::class, 'edit'])->name('edit');
             Route::put('/{id}', [AdminMaintenanceRequestController::class, 'update'])->name('update');
@@ -64,7 +61,19 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{id}/assign', [AdminMaintenanceRequestController::class, 'assign'])->name('assign');
             Route::post('/{id}/status', [AdminMaintenanceRequestController::class, 'updateStatus'])->name('status');
             Route::post('/{id}/complete', [AdminMaintenanceRequestController::class, 'complete'])->name('complete');
+            Route::get('/{id}/notes', [AdminMaintenanceRequestController::class, 'notes'])->name('notes');
             Route::get('/statistics', [AdminMaintenanceRequestController::class, 'statistics'])->name('statistics');
+            
+            // 댓글 관리 라우트
+            Route::post('/{id}/comments', [AdminCommentController::class, 'store'])->name('comments.store');
+            Route::put('/{id}/comments/{comment}', [AdminCommentController::class, 'update'])->name('comments.update');
+            Route::delete('/{id}/comments/{comment}', [AdminCommentController::class, 'destroy'])->name('comments.destroy');
+            
+            // 작업공수 관리 라우트
+            Route::post('/{id}/work-hours', [AdminMaintenanceRequestController::class, 'updateWorkHours'])->name('work-hours.update');
+            
+            // 관리자 설정 관리 라우트
+            Route::post('/{id}/admin-settings', [AdminMaintenanceRequestController::class, 'updateAdminSettings'])->name('admin-settings.update');
         });
 
         // 관리자 월간보고서 라우트
@@ -82,6 +91,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/statistics', [AdminMonthlyReportController::class, 'statistics'])->name('statistics');
             Route::post('/bulk-publish', [AdminMonthlyReportController::class, 'bulkPublish'])->name('bulk-publish');
             Route::post('/bulk-unpublish', [AdminMonthlyReportController::class, 'bulkUnpublish'])->name('bulk-unpublish');
+            Route::post('/bulk-delete', [AdminMonthlyReportController::class, 'bulkDelete'])->name('bulk-delete');
         });
 
         // 관리자 공지사항 라우트
@@ -93,6 +103,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{id}/edit', [AdminNoticeController::class, 'edit'])->name('edit');
             Route::put('/{id}', [AdminNoticeController::class, 'update'])->name('update');
             Route::delete('/{id}', [AdminNoticeController::class, 'destroy'])->name('destroy');
+            Route::post('/bulk-delete', [AdminNoticeController::class, 'bulkDelete'])->name('bulk-delete');
             Route::post('/{id}/publish', [AdminNoticeController::class, 'publish'])->name('publish');
             Route::post('/{id}/unpublish', [AdminNoticeController::class, 'unpublish'])->name('unpublish');
             Route::post('/{id}/important', [AdminNoticeController::class, 'markAsImportant'])->name('important');
@@ -102,6 +113,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/bulk-unpublish', [AdminNoticeController::class, 'bulkUnpublish'])->name('bulk-unpublish');
             Route::post('/bulk-important', [AdminNoticeController::class, 'bulkMarkAsImportant'])->name('bulk-important');
             Route::post('/bulk-normal', [AdminNoticeController::class, 'bulkMarkAsNormal'])->name('bulk-normal');
+            Route::get('/files/{file}/download', [AdminNoticeController::class, 'downloadFile'])->name('files.download');
         });
 
         // 관리자 환경설정 라우트

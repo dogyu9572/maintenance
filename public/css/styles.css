@@ -191,8 +191,15 @@
 .dashboard_wrap.admin_set .list_area {height:100%;}
 .dashboard_wrap.admin_set .list_area .list table {height:auto;}
 .dashboard_wrap.admin_set .list_area .list .scroll {overflow:hidden auto; height:calc(100% - 40px);}
-.dashboard_wrap.admin_set .list_area .list .scroll table {min-height:670px; height:100%;}
+.dashboard_wrap.admin_set .list_area .list .scroll table {height:auto;}
 td .btn_note {display:block; width:24px !important; height:24px; background:#7A7F89 url('/images/btn_note.svg') no-repeat 50% 50%; border-radius:4px; margin:0 auto; font-size:0;}
+
+/* admin_set 상태별 색깔 */
+.dashboard_wrap.admin_set .list_area .list .state.i1 {color:#00BD44; background:#ECF8EB; border-color:#CAEFD8;}
+.dashboard_wrap.admin_set .list_area .list .state.i2 {color:#6C4EE2; background:#F6F4FF; border-color:#E9E3FE;}
+.dashboard_wrap.admin_set .list_area .list .state.i3 {color:#373F57; background:#F4F7F9; border-color:#EAEDF4;}
+.dashboard_wrap.admin_set .list_area .list .state.i4 {color:#1466D6; background:#E9F3FF; border-color:#D5E4F9;}
+.dashboard_wrap.admin_set .list_area .list .state.i5 {color:#FB0E55; background:#FFECF1; border-color:#FFD9E5;}
 
 /* sub */
 .sub_wrap {padding:80px 0 100px; color:#21293B; line-height:1.2;}
@@ -267,6 +274,7 @@ td .btn_note {display:block; width:24px !important; height:24px; background:#7A7
 .board_list .state.i4 {color:#1466D6; background:#E9F3FF; border-color:#D5E4F9;}
 .board_list .state.i5 {color:#FB0E55; background:#FFECF1; border-color:#FFD9E5;}
 .board_list .state.i6 {color:#373F57; background:#F4F7F9; border-color:#EAEDF4;}
+.board_list .state.urgent {color:#fff; background:#FF4444; border-color:#FF4444; font-weight:bold;}
 .board_list .notice .icon {display:flex; justify-content:center; align-items:center; gap:2px; font-size:13px; color:#fff; font-weight:700; line-height:24px; height:24px; width:54px; max-width:100%; background:#21293B; border-radius:12px; margin:0 auto; text-align:center;}
 /* .board_list .notice .icon:before {content:""; display:block; width:14px; height:14px; background:url('/images/icon_notice.svg') no-repeat 50% 50% / contain;} */
 .board_list .flex {gap:16px; flex-wrap:wrap;}
@@ -275,6 +283,7 @@ td .btn_note {display:block; width:24px !important; height:24px; background:#7A7
 .board_list .flex dd .text {width:80px; border-color:#D2D6E0; background:#F4F6FA;}
 .board_list .flex dd .text.bgw {background:#fff;}
 .board_list .hot .icon {display:block; font-size:13px; color:#fff; font-weight:700; line-height:24px; height:24px; width:52px; max-width:100%; background:#FF1B36; border-radius:12px; margin:0 auto;}
+.board_list .num .icon {display:block; font-size:13px; color:#fff; font-weight:700; line-height:24px; height:24px; width:52px; max-width:100%; background:#FF4444; border-radius:12px; margin:0 auto;}
 .board_list .datepicker_wrap {align-items:center; gap:0;}
 .board_list .datepicker_wrap span {width:8px; height:1px; background:#475067; margin:0 4px;}
 .board_list .datepicker_wrap .datepicker_area {width:calc(50% - 8px);}
@@ -345,7 +354,9 @@ td .btn_note {display:block; width:24px !important; height:24px; background:#7A7
 .popup {z-index:101; color:#21293B; display:none;}
 .popup .dm {background:rgba(0,0,0,.7);}
 .popup .inbox {position:absolute; top:50%; left:50%; width:640px; max-width:calc(100% - 20px); background:#fff; border-radius:12px; overflow:hidden; transform:translate(-50%,-50%);}
+.popup .pop_fancy {position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);}
 .popup .btn_close {position:absolute; top:0; right:0; width:76px; height:54px; background:url('/images/icon_close.svg') no-repeat 50% 50%; font-size:0; z-index:10;}
+.popup .pop_fancy .btn_close {position:absolute; top:0; right:0; width:76px; height:54px; background:url('/images/icon_close.svg') no-repeat 50% 50%; font-size:0; z-index:10;}
 .pop_fancy .tit,
 .popup .tit {font-size:18px; color:#000; font-weight:600; line-height:54px; padding:0 24px; border-bottom:#EAEDF4 1px solid; margin:0;}
 /* 처리과정(상태) 안내 */
@@ -383,9 +394,7 @@ td .btn_note {display:block; width:24px !important; height:24px; background:#7A7
 .fake_tbl .td .text {height:40px; line-height:38px;}
 .fake_tbl .td .text::placeholder {font-size:0;}
 .btn_submit {display:block; font-size:17px; color:#fff; font-weight:700; line-height:56px; height:56px; width:200px; text-align:center; background:#1466D6; border-radius:6px; margin:32px auto 0;}
-/* 관리자-비고 */
-.pop_note {width:450px;}
-.pop_note .con {padding:24px; font-size:16px; color:#21293B; line-height:1.6; letter-spacing:-.32px;}
+/* 관리자-비고 모달 */
 .fancybox-close {top:0; right:0; width:76px; height:54px; background:url('/images/icon_close.svg') no-repeat 50% 50%; font-size:0;}
 
 /* 유지보수 요청 입력 */
@@ -616,3 +625,71 @@ label.check.mt {margin-top:12px;}
 .preferences .inputs .text {font-size:16px; color:#21293B;}
 .preferences .inputs .text::placeholder {color:#7A7F89;}
 .preferences .inputs textarea.text {height:200px;}
+
+/* 테이블 관련 스타일 */
+.customer { text-align: center; }
+.date_sched { text-align: center; }
+.worker { text-align: center; }
+.note { text-align: center; }
+.note .btn_note { padding: 4px 8px; font-size: 12px; color: #1466D6; text-decoration: none; }
+.note .btn_note:hover { text-decoration: underline; }
+
+/* 비고 모달 스타일 */
+.pop_note {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 101;
+    color: #21293B;
+}
+
+.pop_note .dm {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.pop_note .inbox {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 450px;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    transform: translate(-50%, -50%);
+}
+
+.pop_note .tit {
+    font-size: 18px;
+    color: #000;
+    font-weight: 600;
+    line-height: 54px;
+    padding: 0 24px;
+    border-bottom: #EAEDF4 1px solid;
+    margin: 0;
+}
+
+.pop_note .btn_close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 76px;
+    height: 54px;
+    background: url('/images/icon_close.svg') no-repeat 50% 50%;
+    font-size: 0;
+    z-index: 10;
+}
+
+.pop_note .con {
+    padding: 24px;
+    font-size: 16px;
+    color: #21293B;
+    line-height: 1.6;
+    letter-spacing: -0.32px;
+}

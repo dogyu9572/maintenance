@@ -1,5 +1,5 @@
 <div class="header">
-	<a href="{{ route('home') }}" class="logo">
+	<a href="{{ Auth::check() && Auth::user()->isAdmin() ? route('admin.dashboard') : route('home') }}" class="logo">
 		<img src="{{ asset('images/logo.png') }}" alt="logo"><span>유지보수</span><h1>홈페이지코리아 유지보수</h1>
 	</a>
 	<a href="{{ route('notifications.index') }}" class="alarm mo_vw">알림내역<span>4</span></a>
@@ -14,12 +14,13 @@
 			<div class="gnb">
 			@if(Auth::check() && Auth::user()->isAdmin())
 				@php
-					$gnb0Class = isset($gNum) && $gNum == "00" ? "on" : "";
-					$gnb1Class = isset($gNum) && $gNum == "01" ? "on" : "";
-					$gnb2Class = isset($gNum) && $gNum == "02" ? "on" : "";
-					$gnb3Class = isset($gNum) && $gNum == "03" ? "on" : "";
-					$gnb4Class = isset($gNum) && $gNum == "04" ? "on" : "";
-					$gnb5Class = isset($gNum) && $gNum == "05" ? "on" : "";
+					$currentRoute = request()->route()->getName();
+					$gnb0Class = str_contains($currentRoute, 'admin.dashboard') ? "on" : "";
+					$gnb1Class = str_contains($currentRoute, 'admin.maintenance-requests') ? "on" : "";
+					$gnb2Class = str_contains($currentRoute, 'admin.monthly-reports') ? "on" : "";
+					$gnb3Class = str_contains($currentRoute, 'admin.notices') ? "on" : "";
+					$gnb4Class = str_contains($currentRoute, 'admin.accounts') ? "on" : "";
+					$gnb5Class = str_contains($currentRoute, 'admin.preferences') ? "on" : "";
 				@endphp
 				<div class="menu gnb0 {{ $gnb0Class }}"><a href="{{ route('admin.dashboard') }}">홈</a></div>
 				<div class="menu gnb1 {{ $gnb1Class }}"><a href="{{ route('admin.maintenance-requests.index') }}">유지보수 요청</a></div>
@@ -29,12 +30,13 @@
 				<div class="menu gnb5 {{ $gnb5Class }}"><a href="{{ route('admin.preferences') }}">환경설정</a></div>
 			@else
 				@php
-					$gnb0Class = isset($gNum) && $gNum == "00" ? "on" : "";
-					$gnb1Class = isset($gNum) && $gNum == "01" ? "on" : "";
-					$gnb2Class = isset($gNum) && $gNum == "02" ? "on" : "";
-					$gnb3Class = isset($gNum) && $gNum == "03" ? "on" : "";
-					$gnb4Class = isset($gNum) && $gNum == "04" ? "on" : "";
-					$gnb5Class = isset($gNum) && $gNum == "05" ? "on" : "";
+					$currentRoute = request()->route()->getName();
+					$gnb0Class = str_contains($currentRoute, 'home') ? "on" : "";
+					$gnb1Class = str_contains($currentRoute, 'maintenance.requests') ? "on" : "";
+					$gnb2Class = str_contains($currentRoute, 'monthly-reports') ? "on" : "";
+					$gnb3Class = str_contains($currentRoute, 'notices') ? "on" : "";
+					$gnb4Class = str_contains($currentRoute, 'notifications') ? "on" : "";
+					$gnb5Class = str_contains($currentRoute, 'account') ? "on" : "";
 				@endphp
 				<div class="menu gnb0 {{ $gnb0Class }}"><a href="{{ route('home') }}">홈</a></div>
 				<div class="menu gnb1 {{ $gnb1Class }}"><a href="{{ route('maintenance.requests.index') }}">유지보수 요청</a></div>
@@ -45,7 +47,7 @@
 			@endif
 			</div>
 			<div class="right">
-				<div class="name"><i></i>{{ Auth::user()->name ?? '한국심초음파학회' }}</div>
+				<div class="name"><i></i>{{ Auth::user()->name ?? '' }}</div>
 				<form method="POST" action="{{ route('logout') }}" style="display: inline;">
 					@csrf
 					<button type="submit" class="btn_log" style="background: none; border: none; cursor: pointer;">LOGOUT</button>

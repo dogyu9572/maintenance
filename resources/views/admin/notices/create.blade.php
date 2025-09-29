@@ -42,7 +42,7 @@
                 <dl>
                     <dt>작성자</dt>
                     <dd>
-                        <input type="text" class="text w100p" value="{{ auth()->user()->name ?? '오유림' }}" readonly disabled>
+                        <input type="text" class="text w100p" value="{{ auth()->user()->name ?? '' }}" readonly disabled>
                     </dd>
                 </dl>
                 <dl>
@@ -58,91 +58,6 @@
 </div>
 
 @push('scripts')
-<script type="text/javascript">
-$(document).ready(function(){
-    //첨부파일
-    var maxFiles = 3;
-    var uploadedFiles = [];
-
-    $('#file-input').on('change', function(e) {
-        var files = e.target.files;
-        var fileBox = $('.file_box');
-        var currentFiles = fileBox.children('button').length;
-        if (files.length + currentFiles > maxFiles) {
-            alert('최대 ' + maxFiles + '개의 파일만 업로드할 수 있습니다.');
-            return;
-        }
-        for (var i = 0; i < files.length; i++) {
-            if (currentFiles >= maxFiles) {
-                break;
-            }
-            var fileName = files[i].name;
-            var fileIndex = uploadedFiles.length;  // 파일 인덱스 저장
-            uploadedFiles.push(files[i]);  // 업로드된 파일을 배열에 저장
-            var fileButton = $('<button type="button" class="del">' + fileName + '</button>');
-            fileButton.on('click', function() {
-                var index = $(this).data('index');  // 버튼의 인덱스 가져오기
-                uploadedFiles.splice(index, 1);  // 해당 파일을 배열에서 삭제
-                $(this).remove();  // 버튼 삭제
-                // 파일 인풋을 초기화 후 다시 설정
-                updateFileInput();
-                toggleFileBoxClass();
-            });
-            fileButton.data('index', fileIndex);  // 파일 인덱스를 버튼에 저장
-            fileBox.append(fileButton);
-            currentFiles++;
-        }
-        // 파일 인풋을 업데이트
-        updateFileInput();
-        toggleFileBoxClass();
-    });
-
-    function updateFileInput() {
-        var dataTransfer = new DataTransfer();
-        for (var i = 0; i < uploadedFiles.length; i++) {
-            dataTransfer.items.add(uploadedFiles[i]);
-        }
-        $('#file-input')[0].files = dataTransfer.files;
-    }
-
-    function toggleFileBoxClass() {
-        var fileBox = $('.file_box');
-        if (fileBox.children('button').length > 0) {
-            fileBox.addClass('on');
-        } else {
-            fileBox.removeClass('on');
-        }
-    }
-
-    //스크린샷
-    $('.file-input').on('change', function(e) {
-        var input = $(this);
-        var file = this.files[0];
-        var screenDiv = input.closest('.screen');
-        var imgFit = screenDiv.find('.imgfit');
-        var box = screenDiv.find('.box');
-
-        if (file) {
-            var reader = new FileReader();
-            reader.onload = function(event) {
-                // 이미지와 삭제 버튼 삽입
-                imgFit.html('<img src="' + event.target.result + '" alt="">');
-                screenDiv.append('<button class="del"></button>');
-                // on 클래스 추가
-                screenDiv.addClass('on');
-                // 삭제 버튼 클릭 시
-                screenDiv.find('.del').on('click', function() {
-                    input.val(''); // 파일 입력 내용 삭제
-                    imgFit.empty(); // 이미지 삭제
-                    $(this).remove(); // 삭제 버튼 삭제
-                    // on 클래스 제거
-                    screenDiv.removeClass('on');
-                });
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-});
-</script>
+<script src="{{ asset('js/admin/notices-create.js') }}"></script>
 @endpush
 @endsection

@@ -18,18 +18,24 @@ class Notice extends Model
         'is_important',
         'is_published',
         'published_at',
+        'view_count',
     ];
 
     protected $casts = [
         'is_important' => 'boolean',
         'is_published' => 'boolean',
-        'published_at' => 'datetime',
     ];
 
     // Relationships
     public function user()
     {
-        return $this->belongsTo(User::class);
+        // users 테이블의 기본키가 idx이므로 소유 키를 명시한다.
+        return $this->belongsTo(User::class, 'user_id', 'idx');
+    }
+
+    public function files()
+    {
+        return $this->hasMany(NoticeFile::class, 'notice_id');
     }
 
     // Scopes

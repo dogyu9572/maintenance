@@ -62,22 +62,7 @@
                                 @enderror
                             </td>
                         </tr>
-                        <tr>
-                            <th>고객사 <span class="required">*</span></th>
-                            <td>
-                                <select name="client_id" class="text w300" required>
-                                    <option value="">고객사를 선택하세요</option>
-                                    @foreach($clients as $client)
-                                        <option value="{{ $client->idx }}" {{ old('client_id', $account->client_id) == $client->idx ? 'selected' : '' }}>
-                                            {{ $client->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('client_id')
-                                    <span class="error">{{ $message }}</span>
-                                @enderror
-                            </td>
-                        </tr>
+
                         <tr>
                             <th>직위/직급</th>
                             <td>

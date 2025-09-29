@@ -3,254 +3,312 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreNoticeRequest;
+use App\Http\Requests\UpdateNoticeRequest;
 use App\Models\Notice;
 use App\Models\User;
+use App\Models\NoticeFile;
+use App\Services\NoticeService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class NoticeController extends Controller
 {
+    private const GROUP_NUMBER = '03';
+    private const DEFAULT_PER_PAGE = 20;
+
+    public function __construct(
+        private NoticeService $noticeService
+    ) {
+    }
+
     public function index(Request $request)
     {
-        $query = Notice::with(['user']);
-
-        // 검색 조건 처리
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('content', 'like', "%{$search}%");
-            });
-        }
-
-        // 중요 공지 필터링
-        if ($request->filled('important')) {
-            $query->important();
-        }
-
-        // 게시 상태 필터링
-        if ($request->filled('published')) {
-            if ($request->published === 'true') {
-                $query->published();
-            } else {
-                $query->where('is_published', false);
-            }
-        }
-
-        // 작성자별 필터링
-        if ($request->filled('user_id')) {
-            $query->byUser($request->user_id);
-        }
-
+        $query = $this->getNoticesQuery($request);
         $notices = $query->orderBy('is_important', 'desc')
                         ->orderBy('created_at', 'desc')
-                        ->paginate(20);
+                        ->paginate(self::DEFAULT_PER_PAGE);
 
-        // 필터 옵션들
         $users = User::orderBy('name')->get();
 
-        $gNum = "03";
-        return view('admin.notices.index', compact('notices', 'users', 'gNum'));
+        return view('admin.notices.index', [
+            'notices' => $notices,
+            'users' => $users,
+            'gNum' => self::GROUP_NUMBER,
+            'totalCount' => $notices->total()
+        ]);
     }
 
-    public function show($id)
-    {
-        $notice = Notice::with(['user'])
-            ->findOrFail($id);
-
-        $gNum = "03";
-        return view('admin.notices.show', compact('notice', 'gNum'));
-    }
 
     public function create()
     {
-        $gNum = "03";
-        return view('admin.notices.create', compact('gNum'));
+        return view('admin.notices.create', [
+            'gNum' => self::GROUP_NUMBER
+        ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreNoticeRequest $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'is_important' => 'boolean',
-            'is_published' => 'boolean',
-        ]);
+        try {
+            $notice = $this->noticeService->createNotice($request->validated());
 
-        $notice = Notice::create([
-            'user_id' => Auth::id(),
-            'title' => $validated['title'],
-            'content' => $validated['content'],
-            'is_important' => $validated['is_important'] ?? false,
-            'is_published' => $validated['is_published'] ?? false,
-        ]);
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => '공지사항이 생성되었습니다.',
+                    'redirect' => route('admin.notices.index')
+                ]);
+            }
 
-        return redirect()->route('admin.notices.show', $notice)
-            ->with('success', '공지사항이 생성되었습니다.');
+            return redirect()->route('admin.notices.index')
+                ->with('success', '공지사항이 생성되었습니다.');
+
+        } catch (\Exception $e) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '공지사항 저장 중 오류가 발생했습니다.'
+                ], 500);
+            }
+
+            return back()->withErrors(['message' => '공지사항 저장 중 오류가 발생했습니다.']);
+        }
     }
 
     public function edit($id)
     {
         $notice = Notice::findOrFail($id);
-
         return view('admin.notices.edit', compact('notice'));
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateNoticeRequest $request, $id)
     {
-        $notice = Notice::findOrFail($id);
+        try {
+            $notice = Notice::findOrFail($id);
+            $this->noticeService->updateNotice($notice, $request->validated());
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'is_important' => 'boolean',
-            'is_published' => 'boolean',
-        ]);
+            return redirect()->route('admin.notices.show', $notice)
+                ->with('success', '공지사항이 수정되었습니다.');
 
-        $notice->update($validated);
-
-        return redirect()->route('admin.notices.show', $notice)
-            ->with('success', '공지사항이 수정되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '공지사항 수정 중 오류가 발생했습니다.']);
+        }
     }
 
     public function destroy($id)
     {
-        $notice = Notice::findOrFail($id);
+        try {
+            $notice = Notice::findOrFail($id);
+            $this->noticeService->deleteNotice($notice);
 
-        $notice->delete();
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => '삭제 중 오류가 발생했습니다.'], 500);
+        }
+    }
 
-        return redirect()->route('admin.notices.index')
-            ->with('success', '공지사항이 삭제되었습니다.');
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:notices,idx'
+        ]);
+
+        try {
+            $success = $this->noticeService->bulkDeleteNotices($request->ids);
+            return response()->json(['success' => $success]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => '삭제 중 오류가 발생했습니다.'], 500);
+        }
     }
 
     public function publish($id)
     {
-        $notice = Notice::findOrFail($id);
+        try {
+            $notice = Notice::findOrFail($id);
+            $this->noticeService->publishNotice($notice);
 
-        $notice->publish();
-
-        return back()->with('success', '공지사항이 게시되었습니다.');
+            return back()->with('success', '공지사항이 게시되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '게시 중 오류가 발생했습니다.']);
+        }
     }
 
     public function unpublish($id)
     {
-        $notice = Notice::findOrFail($id);
+        try {
+            $notice = Notice::findOrFail($id);
+            $this->noticeService->unpublishNotice($notice);
 
-        $notice->unpublish();
-
-        return back()->with('success', '공지사항 게시가 취소되었습니다.');
+            return back()->with('success', '공지사항 게시가 취소되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '게시 취소 중 오류가 발생했습니다.']);
+        }
     }
 
     public function markAsImportant($id)
     {
-        $notice = Notice::findOrFail($id);
+        try {
+            $notice = Notice::findOrFail($id);
+            $this->noticeService->markAsImportant($notice);
 
-        $notice->markAsImportant();
-
-        return back()->with('success', '공지사항이 중요 표시되었습니다.');
+            return back()->with('success', '공지사항이 중요 표시되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '중요 표시 중 오류가 발생했습니다.']);
+        }
     }
 
     public function markAsNormal($id)
     {
-        $notice = Notice::findOrFail($id);
+        try {
+            $notice = Notice::findOrFail($id);
+            $this->noticeService->markAsNormal($notice);
 
-        $notice->markAsNormal();
-
-        return back()->with('success', '공지사항 중요 표시가 해제되었습니다.');
+            return back()->with('success', '공지사항 중요 표시가 해제되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '중요 표시 해제 중 오류가 발생했습니다.']);
+        }
     }
 
     public function statistics()
     {
-        // 전체 통계
-        $totalNotices = Notice::count();
-        $publishedNotices = Notice::published()->count();
-        $importantNotices = Notice::important()->count();
-        $draftNotices = Notice::where('is_published', false)->count();
+        $stats = $this->noticeService->getStatistics();
 
-        // 작성자별 통계
-        $userStats = User::withCount(['notices' => function($query) {
-            $query->published();
-        }])->get();
-
-        // 월별 통계
-        $monthlyStats = Notice::selectRaw('
-            YEAR(created_at) as year,
-            MONTH(created_at) as month,
-            COUNT(*) as total,
-            COUNT(CASE WHEN is_published = 1 THEN 1 END) as published,
-            COUNT(CASE WHEN is_important = 1 THEN 1 END) as important
-        ')
-        ->groupBy('year', 'month')
-        ->orderBy('year', 'desc')
-        ->orderBy('month', 'desc')
-        ->limit(12)
-        ->get();
-
-        return view('admin.notices.statistics', compact(
-            'totalNotices',
-            'publishedNotices',
-            'importantNotices',
-            'draftNotices',
-            'userStats',
-            'monthlyStats'
-        ));
+        return view('admin.notices.statistics', array_merge($stats, [
+            'gNum' => self::GROUP_NUMBER
+        ]));
     }
 
     public function bulkPublish(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'notice_ids' => 'required|array',
             'notice_ids.*' => 'exists:notices,idx',
         ]);
 
-        Notice::whereIn('idx', $validated['notice_ids'])
-            ->update([
-                'is_published' => true,
-                'published_at' => now()
-            ]);
-
-        return back()->with('success', '선택된 공지사항들이 게시되었습니다.');
+        try {
+            $success = $this->noticeService->bulkPublishNotices($request->notice_ids);
+            return back()->with('success', '선택된 공지사항들이 게시되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '대량 게시 중 오류가 발생했습니다.']);
+        }
     }
 
     public function bulkUnpublish(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'notice_ids' => 'required|array',
             'notice_ids.*' => 'exists:notices,idx',
         ]);
 
-        Notice::whereIn('idx', $validated['notice_ids'])
-            ->update([
-                'is_published' => false,
-                'published_at' => null
-            ]);
-
-        return back()->with('success', '선택된 공지사항들의 게시가 취소되었습니다.');
+        try {
+            $success = $this->noticeService->bulkUnpublishNotices($request->notice_ids);
+            return back()->with('success', '선택된 공지사항들의 게시가 취소되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '대량 게시 취소 중 오류가 발생했습니다.']);
+        }
     }
 
     public function bulkMarkAsImportant(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'notice_ids' => 'required|array',
             'notice_ids.*' => 'exists:notices,idx',
         ]);
 
-        Notice::whereIn('idx', $validated['notice_ids'])
-            ->update(['is_important' => true]);
-
-        return back()->with('success', '선택된 공지사항들이 중요 표시되었습니다.');
+        try {
+            $success = $this->noticeService->bulkMarkAsImportant($request->notice_ids);
+            return back()->with('success', '선택된 공지사항들이 중요 표시되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '대량 중요 표시 중 오류가 발생했습니다.']);
+        }
     }
 
     public function bulkMarkAsNormal(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'notice_ids' => 'required|array',
             'notice_ids.*' => 'exists:notices,idx',
         ]);
 
-        Notice::whereIn('idx', $validated['notice_ids'])
-            ->update(['is_important' => false]);
+        try {
+            $success = $this->noticeService->bulkMarkAsNormal($request->notice_ids);
+            return back()->with('success', '선택된 공지사항들의 중요 표시가 해제되었습니다.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['message' => '대량 중요 표시 해제 중 오류가 발생했습니다.']);
+        }
+    }
 
-        return back()->with('success', '선택된 공지사항들의 중요 표시가 해제되었습니다.');
+    public function downloadFile($fileId)
+    {
+        $file = NoticeFile::findOrFail($fileId);
+        $absolutePath = storage_path('app/public/' . $file->file_path);
+
+        if (!file_exists($absolutePath)) {
+            abort(404);
+        }
+
+        return response()->download($absolutePath, $file->original_name);
+    }
+
+    /**
+     * 공지사항 쿼리 생성 (공통 로직)
+     */
+    private function getNoticesQuery(Request $request): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = Notice::with(['user']);
+
+        if ($request->filled('search')) {
+            $this->applySearchFilter($query, $request->search);
+        }
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $this->applyDateFilter($query, $request->start_date, $request->end_date);
+        }
+
+        if ($request->filled('important')) {
+            $query->important();
+        }
+
+        if ($request->filled('published')) {
+            $this->applyPublishedFilter($query, $request->published);
+        }
+
+        if ($request->filled('user_id')) {
+            $query->byUser($request->user_id);
+        }
+
+        return $query;
+    }
+
+    /**
+     * 검색 필터 적용
+     */
+    private function applySearchFilter($query, string $search): void
+    {
+        $query->where(function ($q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+                ->orWhere('content', 'like', "%{$search}%");
+        });
+    }
+
+    /**
+     * 날짜 필터 적용
+     */
+    private function applyDateFilter($query, string $startDate, string $endDate): void
+    {
+        $query->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59');
+    }
+
+    /**
+     * 게시 상태 필터 적용
+     */
+    private function applyPublishedFilter($query, string $published): void
+    {
+        if ($published === 'true') {
+            $query->published();
+        } else {
+            $query->where('is_published', false);
+        }
     }
 }

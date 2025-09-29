@@ -7,78 +7,43 @@ use App\Models\MaintenanceRequest;
 use App\Models\RequestStatus;
 use App\Models\MaintenanceType;
 use App\Models\User;
-use App\Models\Client;
+use App\Http\Requests\MaintenanceRequestRequest;
+use App\Services\MaintenanceRequestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class MaintenanceRequestController extends Controller
 {
+    const G_NUM = '01';
+
+    protected $maintenanceRequestService;
+
+    public function __construct(MaintenanceRequestService $maintenanceRequestService)
+    {
+        $this->maintenanceRequestService = $maintenanceRequestService;
+    }
+
     public function index(Request $request)
     {
-        $query = MaintenanceRequest::with(['status', 'maintenanceType', 'user', 'assignedUser', 'user.client']);
+        $filters = $request->only(['search', 'status', 'type_id', 'start_date', 'end_date', 'per_page']);
+        
+        $requests = $this->maintenanceRequestService->getFilteredRequests($filters);
+        $statistics = $this->maintenanceRequestService->getRequestStatistics();
+        $filterOptions = $this->maintenanceRequestService->getFilterOptions();
 
-        // 검색 조건 처리
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhereHas('user', function($userQuery) use ($search) {
-                      $userQuery->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('user.client', function($clientQuery) use ($search) {
-                      $clientQuery->where('name', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        // 클라이언트별 필터링
-        if ($request->filled('client_id')) {
-            $query->whereHas('user', function($q) use ($request) {
-                $q->where('client_id', $request->client_id);
-            });
-        }
-
-        // 상태별 필터링
-        if ($request->filled('status_id')) {
-            $query->where('status_id', $request->status_id);
-        }
-
-        // 유지보수 유형별 필터링
-        if ($request->filled('type_id')) {
-            $query->where('maintenance_type_id', $request->type_id);
-        }
-
-        // 날짜 필터
-        if ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
-        }
-
-        $requests = $query->orderBy('created_at', 'desc')->paginate(20);
-
-        // 필터 옵션들
-        $clients = Client::orderBy('name')->get();
-        $statuses = RequestStatus::orderBy('order')->get();
-        $types = MaintenanceType::orderBy('name')->get();
-
-        // 전체 요청 수
-        $allCount = MaintenanceRequest::count();
-
-        // 상태별 요청 수
-        $statusStats = RequestStatus::withCount('maintenanceRequests')->get();
-
-        $gNum = "01";
         return view('admin.maintenance-requests.index', compact(
             'requests',
-            'clients',
-            'statuses',
-            'types',
-            'allCount',
-            'statusStats',
-            'gNum'
+            'statistics',
+            'filterOptions'
         ));
+    }
+
+    public function create()
+    {
+        $filterOptions = $this->maintenanceRequestService->getFilterOptions();
+        $users = User::orderBy('name')->get();
+
+        return view('admin.maintenance-requests.create', compact('filterOptions', 'users'));
     }
 
     public function show($id)
@@ -86,47 +51,32 @@ class MaintenanceRequestController extends Controller
         $request = MaintenanceRequest::with([
             'status',
             'maintenanceType',
-            'user.client',
-            'assignedUser',
+            'user',
+            'manager',
+            'worker',
             'attachments',
             'comments.user'
         ])->findOrFail($id);
 
-        $gNum = "01";
-        return view('admin.maintenance-requests.show', compact('request', 'gNum'));
+        $filterOptions = $this->maintenanceRequestService->getFilterOptions();
+        $users = User::orderBy('name')->get();
+
+        return view('admin.maintenance-requests.show', compact('request', 'filterOptions', 'users'));
     }
 
     public function edit($id)
     {
-        $request = MaintenanceRequest::with(['user.client'])->findOrFail($id);
-
-        $statuses = RequestStatus::orderBy('order')->get();
-        $types = MaintenanceType::orderBy('name')->get();
+        $request = MaintenanceRequest::with(['user'])->findOrFail($id);
+        $filterOptions = $this->maintenanceRequestService->getFilterOptions();
         $users = User::orderBy('name')->get();
 
-        return view('admin.maintenance-requests.edit', compact('request', 'statuses', 'types', 'users'));
+        return view('admin.maintenance-requests.edit', compact('request', 'filterOptions', 'users'));
     }
 
-    public function update(Request $request, $id)
+    public function update(MaintenanceRequestRequest $request, $id)
     {
         $maintenanceRequest = MaintenanceRequest::findOrFail($id);
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'maintenance_type_id' => 'required|exists:maintenance_types,idx',
-            'status_id' => 'required|exists:request_statuses,idx',
-            'assigned_user_id' => 'nullable|exists:users,idx',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'estimated_pm_hours' => 'nullable|integer|min:0',
-            'estimated_design_hours' => 'nullable|integer|min:0',
-            'estimated_publishing_hours' => 'nullable|integer|min:0',
-            'estimated_development_hours' => 'nullable|integer|min:0',
-            'actual_pm_hours' => 'nullable|integer|min:0',
-            'actual_design_hours' => 'nullable|integer|min:0',
-            'actual_publishing_hours' => 'nullable|integer|min:0',
-            'actual_development_hours' => 'nullable|integer|min:0',
-        ]);
+        $validated = $request->validated();
 
         $maintenanceRequest->update($validated);
 
@@ -137,15 +87,8 @@ class MaintenanceRequestController extends Controller
     public function destroy($id)
     {
         $request = MaintenanceRequest::findOrFail($id);
-
-        // 첨부파일 삭제
-        foreach ($request->attachments as $attachment) {
-            if (file_exists(storage_path('app/public/' . $attachment->file_path))) {
-                unlink(storage_path('app/public/' . $attachment->file_path));
-            }
-        }
-
-        $request->delete();
+        
+        $this->maintenanceRequestService->deleteRequestWithAttachments($request);
 
         return redirect()->route('admin.maintenance-requests.index')
             ->with('success', '유지보수 요청이 삭제되었습니다.');
@@ -180,46 +123,78 @@ class MaintenanceRequestController extends Controller
     public function complete($id)
     {
         $maintenanceRequest = MaintenanceRequest::findOrFail($id);
-
-        $maintenanceRequest->update([
-            'completed_at' => now(),
-            'status_id' => RequestStatus::where('name', '완료')->first()->idx ?? 1
-        ]);
+        
+        $this->maintenanceRequestService->completeRequest($maintenanceRequest);
 
         return back()->with('success', '유지보수가 완료 처리되었습니다.');
     }
 
     public function statistics()
     {
-        // 전체 통계
-        $totalRequests = MaintenanceRequest::count();
-        $completedRequests = MaintenanceRequest::whereNotNull('completed_at')->count();
-        $pendingRequests = MaintenanceRequest::whereNull('completed_at')->count();
+        $statistics = $this->maintenanceRequestService->getStatistics();
 
-        // 클라이언트별 통계
-        $clientStats = Client::withCount(['maintenanceRequests' => function($query) {
-            $query->whereNotNull('completed_at');
-        }])->get();
+        return view('admin.maintenance-requests.statistics', $statistics);
+    }
 
-        // 월별 통계
-        $monthlyStats = MaintenanceRequest::selectRaw('
-            YEAR(created_at) as year,
-            MONTH(created_at) as month,
-            COUNT(*) as total,
-            COUNT(CASE WHEN completed_at IS NOT NULL THEN 1 END) as completed
-        ')
-        ->groupBy('year', 'month')
-        ->orderBy('year', 'desc')
-        ->orderBy('month', 'desc')
-        ->limit(12)
-        ->get();
+    public function notes($id)
+    {
+        $request = MaintenanceRequest::with(['user', 'manager', 'worker', 'maintenanceType', 'status'])->findOrFail($id);
+        
+        $notes = $this->maintenanceRequestService->generateStatusNotes($request);
+        
+        return response()->json($notes);
+    }
 
-        return view('admin.maintenance-requests.statistics', compact(
-            'totalRequests',
-            'completedRequests',
-            'pendingRequests',
-            'clientStats',
-            'monthlyStats'
-        ));
+    public function updateWorkHours(Request $request, $id)
+    {
+        $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+        
+        $validated = $request->validate([
+            'expected_pm_hours' => 'nullable|numeric|min:0',
+            'expected_design_hours' => 'nullable|numeric|min:0',
+            'expected_pub_hours' => 'nullable|numeric|min:0',
+            'expected_dev_hours' => 'nullable|numeric|min:0',
+            'actual_pm_hours' => 'nullable|numeric|min:0',
+            'actual_design_hours' => 'nullable|numeric|min:0',
+            'actual_pub_hours' => 'nullable|numeric|min:0',
+            'actual_dev_hours' => 'nullable|numeric|min:0',
+        ]);
+
+        $this->maintenanceRequestService->updateWorkHours($maintenanceRequest, $validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => '작업공수가 저장되었습니다.'
+        ]);
+    }
+
+    public function updateAdminSettings(Request $request, $id)
+    {
+        try {
+            $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+            
+            $validated = $request->validate([
+                'is_urgent' => 'boolean',
+                'worker_id' => 'nullable|exists:users,idx',
+                'expected_date' => 'nullable|date',
+                'notes' => 'nullable|string|max:1000',
+                'issues' => 'nullable|string|max:1000',
+                'report_title' => 'nullable|string|max:255',
+                'progress_rate' => 'nullable|integer|min:0|max:100',
+                'progress_status' => 'nullable|string|max:50',
+            ]);
+
+            $this->maintenanceRequestService->updateAdminSettings($maintenanceRequest, $validated);
+            
+            return response()->json([
+                'success' => true,
+                'message' => '관리자 설정이 저장되었습니다.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => '관리자 설정 저장 중 오류가 발생했습니다: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

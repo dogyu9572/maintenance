@@ -17,6 +17,7 @@ class Comment extends Model
         'user_id',
         'content',
         'type',
+        'parent_id',
     ];
 
     protected $casts = [
@@ -32,6 +33,16 @@ class Comment extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'idx');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(Comment::class, 'parent_id');
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(Comment::class, 'parent_id');
     }
 
     public function getTypeName()
